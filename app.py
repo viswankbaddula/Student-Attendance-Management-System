@@ -501,7 +501,9 @@ def init_db():
             )
             db.session.add(teacher)
             db.session.commit()
-
+# Initialize database for Gunicorn/Render
+with app.app_context():
+    init_db()
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
