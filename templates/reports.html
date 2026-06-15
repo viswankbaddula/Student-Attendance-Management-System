@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Student Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-effect">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h2>Attendance</h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('students') }}" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Students</span>
+                </a>
+                <a href="{{ url_for('attendance') }}" class="nav-item">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="{{ url_for('reports') }}" class="nav-item active">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ session.username }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1>Attendance Reports</h1>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Report Type Selection -->
+            <div class="report-controls glass-effect">
+                <div class="control-group">
+                    <label for="reportType">Report Type:</label>
+                    <select id="reportType" onchange="changeReportType()">
+                        <option value="student" {% if report_type == 'student' %}selected{% endif %}>Student-wise</option>
+                        <option value="department" {% if report_type == 'department' %}selected{% endif %}>Department-wise</option>
+                        <option value="monthly" {% if report_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                    </select>
+                </div>
+                
+                {% if report_type == 'department' %}
+                <div class="control-group">
+                    <label for="departmentFilter">Department:</label>
+                    <select id="departmentFilter" onchange="applyReportFilters()">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept }}" {% if dept == selected_department %}selected{% endif %}>{{ dept }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                
+                {% if report_type == 'monthly' %}
+                <div class="control-group">
+                    <label for="monthFilter">Month:</label>
+                    <select id="monthFilter" onchange="applyReportFilters()">
+                        <option value="">All Months</option>
+                        <option value="1" {% if selected_month == '1' %}selected{% endif %}>January</option>
+                        <option value="2" {% if selected_month == '2' %}selected{% endif %}>February</option>
+                        <option value="3" {% if selected_month == '3' %}selected{% endif %}>March</option>
+                        <option value="4" {% if selected_month == '4' %}selected{% endif %}>April</option>
+                        <option value="5" {% if selected_month == '5' %}selected{% endif %}>May</option>
+                        <option value="6" {% if selected_month == '6' %}selected{% endif %}>June</option>
+                        <option value="7" {% if selected_month == '7' %}selected{% endif %}>July</option>
+                        <option value="8" {% if selected_month == '8' %}selected{% endif %}>August</option>
+                        <option value="9" {% if selected_month == '9' %}selected{% endif %}>September</option>
+                        <option value="10" {% if selected_month == '10' %}selected{% endif %}>October</option>
+                        <option value="11" {% if selected_month == '11' %}selected{% endif %}>November</option>
+                        <option value="12" {% if selected_month == '12' %}selected{% endif %}>December</option>
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="control-group">
+                    <button class="btn btn-success" onclick="exportReport()">
+                        <i class="fas fa-download"></i>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Report Table -->
+            <div class="table-container glass-effect">
+                <table class="data-table">
+                    <thead>
+                        {% if report_type == 'student' %}
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Roll Number</th>
+                            <th>Department</th>
+                            <th>Total Classes</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Attendance %</th>
+                        </tr>
+                        {% elif report_type == 'department' %}
+                        <tr>
+                            <th>Department</th>
+                            <th>Total Students</th>
+                            <th>Total Classes</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Attendance %</th>
+                        </tr>
+                        {% elif report_type == 'monthly' %}
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Name</th>
+                            <th>Roll Number</th>
+                            <th>Department</th>
+                            <th>Total Classes</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Attendance %</th>
+                        </tr>
+                        {% endif %}
+                    </thead>
+                    <tbody>
+                        {% for item in report_data %}
+                        <tr>
+                            {% if report_type == 'student' or report_type == 'monthly' %}
+                            <td>{{ item.student_id }}</td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.roll_number }}</td>
+                            <td>{{ item.department }}</td>
+                            <td>{{ item.total_classes }}</td>
+                            <td>{{ item.present_count }}</td>
+                            <td>{{ item.absent_count }}</td>
+                            <td>
+                                <span class="percentage-badge {{ 'high' if item.percentage >= 75 else 'medium' if item.percentage >= 50 else 'low' }}">
+                                    {{ item.percentage }}%
+                                </span>
+                            </td>
+                            {% elif report_type == 'department' %}
+                            <td>{{ item.department }}</td>
+                            <td>{{ item.total_students }}</td>
+                            <td>{{ item.total_classes }}</td>
+                            <td>{{ item.present_count }}</td>
+                            <td>{{ item.absent_count }}</td>
+                            <td>
+                                <span class="percentage-badge {{ 'high' if item.percentage >= 75 else 'medium' if item.percentage >= 50 else 'low' }}">
+                                    {{ item.percentage }}%
+                                </span>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Statistics Summary -->
+            <div class="stats-summary glass-effect">
+                <h3>Summary Statistics</h3>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Records:</span>
+                        <span class="summary-value">{{ report_data|length }}</span>
+                    </div>
+                    {% if report_type == 'student' or report_type == 'monthly' %}
+                    <div class="summary-item">
+                        <span class="summary-label">Average Attendance:</span>
+                        <span class="summary-value">
+                            {% set total_percent = report_data|sum(attribute='percentage') %}
+                            {% set avg_percent = (total_percent / report_data|length)|round(1) if report_data else 0 %}
+                            {{ avg_percent }}%
+                        </span>
+                    </div>
+                    {% endif %}
+                    <div class="summary-item">
+                        <span class="summary-label">High Attendance (≥75%):</span>
+                        <span class="summary-value">
+                            {{ report_data|selectattr('percentage', 'ge', 75)|list|length }}
+                        </span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Low Attendance (<50%):</span>
+                        <span class="summary-value">
+                            {{ report_data|selectattr('percentage', 'lt', 50)|list|length }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+</body>
+</html>

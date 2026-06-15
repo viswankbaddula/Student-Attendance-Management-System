@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Student Attendance System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-effect">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h2>Attendance</h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('students') }}" class="nav-item">
+                    <i class="fas fa-users"></i>
+                    <span>Students</span>
+                </a>
+                <a href="{{ url_for('attendance') }}" class="nav-item active">
+                    <i class="fas fa-clipboard-check"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="{{ url_for('reports') }}" class="nav-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span>{{ session.username }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="header">
+                <h1>Attendance Management</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="showHistory()">
+                        <i class="fas fa-history"></i>
+                        View History
+                    </button>
+                    <button class="theme-toggle" id="themeToggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Mark Attendance Section -->
+            <div id="markAttendanceSection">
+                <div class="date-selector glass-effect">
+                    <label for="attendanceDate">Select Date:</label>
+                    <input type="date" id="attendanceDate" value="{{ selected_date.strftime('%Y-%m-%d') }}" onchange="loadAttendanceForDate()">
+                </div>
+                
+                <div class="attendance-actions glass-effect">
+                    <button class="btn btn-success" onclick="markAllPresent()">
+                        <i class="fas fa-check-double"></i>
+                        Mark All Present
+                    </button>
+                    <button class="btn btn-danger" onclick="markAllAbsent()">
+                        <i class="fas fa-times"></i>
+                        Mark All Absent
+                    </button>
+                    <button class="btn btn-primary" onclick="saveAttendance()">
+                        <i class="fas fa-save"></i>
+                        Save Attendance
+                    </button>
+                </div>
+                
+                <div class="table-container glass-effect">
+                    <form id="attendanceForm" action="{{ url_for('mark_attendance') }}" method="POST">
+                        <input type="hidden" name="date" id="hiddenDate" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Roll Number</th>
+                                    <th>Student Name</th>
+                                    <th>Department</th>
+                                    <th>Year</th>
+                                    <th>Section</th>
+                                    <th>Present</th>
+                                    <th>Absent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>{{ student.roll_number }}</td>
+                                    <td>{{ student.name }}</td>
+                                    <td>{{ student.department }}</td>
+                                    <td>{{ student.year }}</td>
+                                    <td>{{ student.section }}</td>
+                                    <td>
+                                        <input type="radio" name="status_{{ student.student_id }}" value="present" 
+                                            {% if attendance_records.get(student.student_id) == 'present' %}checked{% endif %}>
+                                    </td>
+                                    <td>
+                                        <input type="radio" name="status_{{ student.student_id }}" value="absent" 
+                                            {% if attendance_records.get(student.student_id) == 'absent' %}checked{% endif %}>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Attendance History Section -->
+            <div id="historySection" style="display: none;">
+                <div class="date-selector glass-effect">
+                    <label for="searchDate">Search by Date:</label>
+                    <input type="date" id="searchDate" value="{{ search_date }}" onchange="searchHistory()">
+                    <button class="btn btn-secondary" onclick="showMarkAttendance()">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Mark Attendance
+                    </button>
+                </div>
+                
+                <div class="table-container glass-effect">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Student ID</th>
+                                <th>Student Name</th>
+                                <th>Roll Number</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Marked At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in attendance_history.items %}
+                            <tr>
+                                <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ record.student_id }}</td>
+                                <td>{{ record.student.name }}</td>
+                                <td>{{ record.student.roll_number }}</td>
+                                <td>{{ record.student.department }}</td>
+                                <td>
+                                    <span class="status-badge {{ record.status }}">
+                                        {{ record.status|title }}
+                                    </span>
+                                </td>
+                                <td>{{ record.marked_at.strftime('%I:%M %p') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        {% if attendance_history.has_prev %}
+                        <a href="{{ url_for('attendance_history', page=attendance_history.prev_num, date=search_date) }}" class="page-link">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        {% endif %}
+                        
+                        <span class="page-info">Page {{ attendance_history.page }} of {{ attendance_history.pages }}</span>
+                        
+                        {% if attendance_history.has_next %}
+                        <a href="{{ url_for('attendance_history', page=attendance_history.next_num, date=search_date) }}" class="page-link">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+</body>
+</html>
